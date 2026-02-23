@@ -1,8 +1,9 @@
 venv/
 __pycache__/
 *.pyc
-.env
 .DS_Store
 Thumbs.db
 .state
 .state_store
+config.bat
+node_modules
