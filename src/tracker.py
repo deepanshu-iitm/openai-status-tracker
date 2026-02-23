@@ -19,9 +19,21 @@ def save_last_seen_id(entry_id):
     with open(STATE_FILE, "w") as f:
         f.write(entry_id)
 
-def clean_html(raw_html: str) -> str:
+def clean_html(raw_html: str) -> list[str]:
+    if not raw_html:
+        return []
+
     text = html.unescape(raw_html)
-    return re.sub(r"<[^>]+>", "", text).strip()
+
+    text = re.sub(r"<br\s*/?>", "\n", text, flags=re.IGNORECASE)
+    text = re.sub(r"<li>", "- ", text, flags=re.IGNORECASE)
+    text = re.sub(r"</li>", "\n", text, flags=re.IGNORECASE)
+    text = re.sub(r"<[^>]+>", "", text)
+
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    return lines
+
+    return "\n".join(lines)
 
 def fetch_updates(last_seen_id=None):
     feed = feedparser.parse(RSS_URL)
@@ -36,12 +48,40 @@ def fetch_updates(last_seen_id=None):
             continue
 
         title = entry.get("title", "Unknown Product")
-        summary = clean_html(entry.get("summary", "No details available"))
         timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        lines = clean_html(entry.get("summary", ""))
+
+        status = "Unknown"
+        description = []
+        components = []
+
+        for line in lines:
+            lower = line.lower()
+
+            if lower.startswith("status:"):
+                status = line.split(":", 1)[1].strip()
+
+            elif lower == "affected components":    
+                continue
+
+            elif line.startswith("-"):
+                components.append(line)
+
+            else:
+                description.append(line)
 
         print(f"[{timestamp}]")
         print(f"Product: {title}")
-        print(f"Status: {summary}")
+        print(f"Status: {status}")
+
+        for line in description:
+            print(line)
+
+        if components:
+            print("Affected components:")
+            for c in components:
+                print(c)
+
         print("-" * 60)
 
         last_seen_id = entry_id
