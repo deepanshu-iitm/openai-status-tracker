@@ -17,7 +17,7 @@ FEEDS = [
     # },
 ]
 CHECK_INTERVAL_SECONDS = 300  # 5 minutes
-STATE_DIR = ".state"
+STATE_DIR = ".state_store"
 
 def state_file_for(feed_name: str) -> str:
     os.makedirs(STATE_DIR, exist_ok=True)
