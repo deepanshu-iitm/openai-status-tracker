@@ -1,6 +1,9 @@
 import time
 import feedparser
 import os
+from datetime import datetime
+import html
+import re
 
 RSS_URL = "https://status.openai.com/history.rss"
 CHECK_INTERVAL_SECONDS = 300  # 5 minutes
@@ -12,11 +15,13 @@ def load_last_seen_id():
     with open(STATE_FILE, "r") as f:
         return f.read().strip() or None
 
-
 def save_last_seen_id(entry_id):
     with open(STATE_FILE, "w") as f:
         f.write(entry_id)
 
+def clean_html(raw_html: str) -> str:
+    text = html.unescape(raw_html)
+    return re.sub(r"<[^>]+>", "", text).strip()
 
 def fetch_updates(last_seen_id=None):
     feed = feedparser.parse(RSS_URL)
@@ -31,13 +36,13 @@ def fetch_updates(last_seen_id=None):
             continue
 
         title = entry.get("title", "Unknown Product")
-        summary = entry.get("summary", "No details available")
+        summary = clean_html(entry.get("summary", "No details available"))
+        timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
-        print("New OpenAI Status Update")
-        print("------------------------")
+        print(f"[{timestamp}]")
         print(f"Product: {title}")
         print(f"Status: {summary}")
-        print()
+        print("-" * 60)
 
         last_seen_id = entry_id
         save_last_seen_id(entry_id)
