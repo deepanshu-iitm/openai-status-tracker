@@ -5,18 +5,32 @@ from datetime import datetime
 import html
 import re
 
-RSS_URL = "https://status.openai.com/history.rss"
+FEEDS = [
+    {
+        "name": "OpenAI",
+        "url": "https://status.openai.com/history.rss",
+    },
+    # we can add more providers here:
+    # {
+    #     "name": "Stripe",
+    #     "url": "https://status.stripe.com",
+    # },
+]
 CHECK_INTERVAL_SECONDS = 300  # 5 minutes
-STATE_FILE = ".state"
+STATE_DIR = ".state"
 
-def load_last_seen_id():
-    if not os.path.exists(STATE_FILE):
+def state_file_for(feed_name: str) -> str:
+    os.makedirs(STATE_DIR, exist_ok=True)
+    return os.path.join(STATE_DIR, f"{feed_name}.state")
+
+def load_last_seen_id(state_file: str):
+    if not os.path.exists(state_file):
         return None
-    with open(STATE_FILE, "r") as f:
+    with open(state_file, "r") as f:
         return f.read().strip() or None
 
-def save_last_seen_id(entry_id):
-    with open(STATE_FILE, "w") as f:
+def save_last_seen_id(state_file: str, entry_id: str):
+    with open(state_file, "w") as f:
         f.write(entry_id)
 
 def clean_html(raw_html: str) -> list[str]:
@@ -33,10 +47,13 @@ def clean_html(raw_html: str) -> list[str]:
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     return lines
 
-    return "\n".join(lines)
-
-def fetch_updates(last_seen_id=None):
-    feed = feedparser.parse(RSS_URL)
+def fetch_updates(
+    feed_url: str,
+    provider: str,
+    last_seen_id: str | None,
+    state_file: str,
+):
+    feed = feedparser.parse(feed_url)
 
     if not feed.entries:
         return last_seen_id
@@ -71,6 +88,7 @@ def fetch_updates(last_seen_id=None):
                 description.append(line)
 
         print(f"[{timestamp}]")
+        print(f"Provider: {provider}")
         print(f"Product: {title}")
         print(f"Status: {status}")
 
@@ -85,18 +103,33 @@ def fetch_updates(last_seen_id=None):
         print("-" * 60)
 
         last_seen_id = entry_id
-        save_last_seen_id(entry_id)
+        save_last_seen_id(state_file, entry_id)
 
     return last_seen_id
 
 
 def main():
-    last_seen_id = None
-    print("OpenAI Status Tracker started\n")
-    last_seen_id = load_last_seen_id()
+    print("Status Tracker started\n")
+
+    last_seen = {}
+
+    for feed in FEEDS:
+        state_file = state_file_for(feed["name"])
+        last_seen[feed["name"]] = load_last_seen_id(state_file)
 
     while True:
-        last_seen_id = fetch_updates(last_seen_id)
+        for feed in FEEDS:
+            name = feed["name"]
+            url = feed["url"]
+            state_file = state_file_for(name)
+
+            last_seen[name] = fetch_updates(
+                feed_url=url,
+                provider=name,
+                last_seen_id=last_seen[name],
+                state_file=state_file,
+            )
+
         time.sleep(CHECK_INTERVAL_SECONDS)
 
 
