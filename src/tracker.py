@@ -1,6 +1,8 @@
+import time
 import feedparser
 
 RSS_URL = "https://status.openai.com/history.rss"
+CHECK_INTERVAL_SECONDS = 300  # 5 minutes
 
 
 def fetch_updates(last_seen_id=None):
@@ -9,7 +11,6 @@ def fetch_updates(last_seen_id=None):
     if not feed.entries:
         return last_seen_id
 
-    # RSS entries are newest first
     for entry in reversed(feed.entries):
         entry_id = entry.get("id", entry.get("link"))
 
@@ -32,7 +33,11 @@ def fetch_updates(last_seen_id=None):
 
 def main():
     last_seen_id = None
-    last_seen_id = fetch_updates(last_seen_id)
+    print("OpenAI Status Tracker started\n")
+
+    while True:
+        last_seen_id = fetch_updates(last_seen_id)
+        time.sleep(CHECK_INTERVAL_SECONDS)
 
 
 if __name__ == "__main__":
