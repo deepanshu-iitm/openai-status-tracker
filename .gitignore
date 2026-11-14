@@ -5,5 +5,10 @@ __pycache__/
 Thumbs.db
 .state
 .state_store
-config.bat
 node_modules
+
+.env
+.env.*
+!.env.example
+.vscode/
+node_modules/
